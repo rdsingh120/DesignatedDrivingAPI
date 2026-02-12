@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./config/connect.js";
 import authRoutes from "./routes/auth.route.js";
+import estimateRoutes from "./routes/estimate.routes.js";
+import tripRoutes from "./routes/trip.route.js";
+
 
 const server = express();
 
@@ -13,6 +16,8 @@ server.use(
   }),
 );
 server.use(express.json());
+server.use("/api/estimates", estimateRoutes); 
+server.use("/api/trips", tripRoutes);
 
 const port = process.env.PORT || 3000;
 const uri = process.env.MONGO_URI;
