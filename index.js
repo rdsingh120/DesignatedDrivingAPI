@@ -1,9 +1,17 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import connectDB from "./config/connect.js";
-import authRoutes from "./routes/auth.route.js"
+import authRoutes from "./routes/auth.route.js";
 
 const server = express();
+
+server.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 server.use(express.json());
 
 const port = process.env.PORT || 3000;
@@ -17,7 +25,6 @@ server.get("/api/status", (req, res) => {
     message: "Designated Driving Server is running",
   });
 });
-
 
 server.listen(port, async () => {
   try {
