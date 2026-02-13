@@ -114,7 +114,7 @@ export async function dispatchTrip(req, res) {
       {
         _id: trip._id,
         status: TRIP_STATUS.REQUESTED,
-        driverProfile: { $exists: false }, // guard
+        $or: [{ driverProfile: { $exists: false } }, { driverProfile: null }], // guard
       },
       {
         $set: {

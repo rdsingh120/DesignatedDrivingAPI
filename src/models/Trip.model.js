@@ -14,7 +14,7 @@ function isValidLng(v) {
 const TripSchema = new Schema(
   {
     rider: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    driverProfile: { type: Schema.Types.ObjectId, ref: "DriverProfile", index: true },
+    driverProfile: { type: Schema.Types.ObjectId, ref: "DriverProfile"},
     vehicle: { type: Schema.Types.ObjectId, ref: "Vehicle", required: true, index: true },
 
     status: {
