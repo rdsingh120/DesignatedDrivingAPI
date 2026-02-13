@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "Designated Driving API",
+    "_postman_id": "designated-driving-api",
+    "description": "End-to-end testing for Designated Driving system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register Rider",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Rider\",\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"RIDER\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Register Driver",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Driver\",\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"DRIVER\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Login Rider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "pm.environment.set(\"token\", json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Seed Driver",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/dev/seed-driver",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"driver@test.com\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create Vehicle",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "pm.environment.set(\"vehicleId\", json.vehicle._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/api/vehicles",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"make\": \"Toyota\",\n  \"model\": \"Corolla\",\n  \"year\": 2016,\n  \"color\": \"Silver\",\n  \"plateNumber\": \"ABC123\",\n  \"vin\": \"1HGCM82633A004352\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create Estimate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "pm.environment.set(\"estimateId\", json.estimateId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/estimates",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickup\": { \"lat\": 43.6532, \"lng\": -79.3832 },\n  \"dropoff\": { \"lat\": 43.7000, \"lng\": -79.4000 }\n}"
+        }
+      }
+    },
+    {
+      "name": "Create Trip",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "pm.environment.set(\"tripId\", json.trip._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/api/trips",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estimateId\": \"{{estimateId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Dispatch Trip",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{baseUrl}}/api/trips/{{tripId}}/dispatch"
+      }
+    }
+  ]
+}
