@@ -32,7 +32,7 @@ const EstimateSchema = new Schema(
     routing_provider: { type: String, default: "OSRM" },
     routing_base_url: { type: String },
 
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true }
 );
