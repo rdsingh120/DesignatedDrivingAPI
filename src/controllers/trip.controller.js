@@ -5,6 +5,169 @@ import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
+
+// --- helpers ---
+async function getMyDriverProfile(req) {
+  const userId = req.user?._id;
+  if (!userId) return null;
+  return DriverProfile.findOne({ user: userId }).select("_id user activeTrip availability verificationStatus");
+}
+
+/**
+ * POST /api/trips/:id/arrive
+ * ASSIGNED -> ENROUTE
+ * Driver-only, assigned driver only
+ */
+export async function arriveTrip(req, res) {
+  const tripId = req.params.id;
+
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can update trip status" });
+    }
+
+    const me = await getMyDriverProfile(req);
+    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
+
+    // Only assigned driver can move ASSIGNED -> ENROUTE
+    const updated = await Trip.findOneAndUpdate(
+      {
+        _id: tripId,
+        driverProfile: me._id,
+        status: TRIP_STATUS.ASSIGNED,
+      },
+      {
+        $set: { status: TRIP_STATUS.ENROUTE },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      // Could be: trip not found, not assigned to you, or wrong state
+      const exists = await Trip.findById(tripId).select("_id status driverProfile");
+      if (!exists) return res.status(404).json({ error: "Trip not found" });
+      if (String(exists.driverProfile || "") !== String(me._id)) {
+        return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+      }
+      return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.ASSIGNED} to arrive` });
+    }
+
+    return res.status(200).json({ success: true, trip: updated });
+  } catch (err) {
+    console.error("arriveTrip error:", err);
+    return res.status(500).json({ error: "Server error updating trip (arrive)" });
+  }
+}
+
+/**
+ * POST /api/trips/:id/start
+ * ENROUTE -> DRIVING
+ * Driver-only, assigned driver only
+ */
+export async function startTrip(req, res) {
+  const tripId = req.params.id;
+
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can update trip status" });
+    }
+
+    const me = await getMyDriverProfile(req);
+    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
+
+    const updated = await Trip.findOneAndUpdate(
+      {
+        _id: tripId,
+        driverProfile: me._id,
+        status: TRIP_STATUS.ENROUTE,
+      },
+      {
+        $set: {
+          status: TRIP_STATUS.DRIVING,
+          startedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      const exists = await Trip.findById(tripId).select("_id status driverProfile");
+      if (!exists) return res.status(404).json({ error: "Trip not found" });
+      if (String(exists.driverProfile || "") !== String(me._id)) {
+        return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+      }
+      return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.ENROUTE} to start` });
+    }
+
+    return res.status(200).json({ success: true, trip: updated });
+  } catch (err) {
+    console.error("startTrip error:", err);
+    return res.status(500).json({ error: "Server error updating trip (start)" });
+  }
+}
+
+/**
+ * POST /api/trips/:id/complete
+ * DRIVING -> COMPLETED
+ * Driver-only, assigned driver only
+ * Also releases driver: BUSY -> AVAILABLE, activeTrip -> null
+ */
+export async function completeTrip(req, res) {
+  const tripId = req.params.id;
+
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can update trip status" });
+    }
+
+    const me = await getMyDriverProfile(req);
+    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
+
+    // 1) Complete the trip (guarded)
+    const completed = await Trip.findOneAndUpdate(
+      {
+        _id: tripId,
+        driverProfile: me._id,
+        status: TRIP_STATUS.DRIVING,
+      },
+      {
+        $set: {
+          status: TRIP_STATUS.COMPLETED,
+          completedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!completed) {
+      const exists = await Trip.findById(tripId).select("_id status driverProfile");
+      if (!exists) return res.status(404).json({ error: "Trip not found" });
+      if (String(exists.driverProfile || "") !== String(me._id)) {
+        return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+      }
+      return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.DRIVING} to complete` });
+    }
+
+    // 2) Release driver (best-effort, guarded)
+    await DriverProfile.updateOne(
+      { _id: me._id, activeTrip: completed._id },
+      { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Trip completed successfully",
+      trip: completed,
+    });
+  } catch (err) {
+    console.error("completeTrip error:", err);
+    return res.status(500).json({ error: "Server error updating trip (complete)" });
+  }
+}
+
 export async function confirmTripFromEstimate(req, res) {
   try {
     // Expect:
@@ -114,7 +277,7 @@ export async function dispatchTrip(req, res) {
       {
         _id: trip._id,
         status: TRIP_STATUS.REQUESTED,
-        driverProfile: { $exists: false }, // guard
+        $or: [{ driverProfile: { $exists: false } }, { driverProfile: null }], // guard
       },
       {
         $set: {
