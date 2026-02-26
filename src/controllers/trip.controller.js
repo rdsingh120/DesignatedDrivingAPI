@@ -3,6 +3,7 @@ import Estimate from "../models/Estimate.model.js";
 import Trip from "../models/Trip.model.js";
 import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
+import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
 
