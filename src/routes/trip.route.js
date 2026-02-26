@@ -5,7 +5,6 @@ import { confirmTripFromEstimate, dispatchTrip } from "../controllers/trip.contr
 import { arriveTrip, startTrip, completeTrip } from "../controllers/trip.controller.js";
 import { getMyTrips, getTripById } from "../controllers/trip.read.controller.js";
 
-// If you already have an auth middleware, import it and use it here.
 // Example: import requireAuth from "../middleware/requireAuth.js";
 
 const router = Router();
