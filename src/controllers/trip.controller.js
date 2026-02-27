@@ -3,6 +3,7 @@ import Estimate from "../models/Estimate.model.js";
 import Trip from "../models/Trip.model.js";
 import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
+import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
 
@@ -165,6 +166,94 @@ export async function completeTrip(req, res) {
   } catch (err) {
     console.error("completeTrip error:", err);
     return res.status(500).json({ error: "Server error updating trip (complete)" });
+  }
+}
+
+/**
+ * POST /api/trips/:id/accept
+ * REQUESTED -> ASSIGNED
+ * Driver-only, VERIFIED + AVAILABLE + no activeTrip
+ * Atomic claim + concurrency safe
+ */
+export async function acceptTrip(req, res) {
+  const tripId = req.params.id;
+
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can accept trips" });
+    }
+
+    const me = await getMyDriverProfile(req);
+    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
+
+    // eligibility check (quick)
+    if (me.verificationStatus !== DRIVER_VERIFICATION_STATUS.VERIFIED) {
+      return res.status(403).json({ error: "Driver must be VERIFIED to accept trips" });
+    }
+    if (me.availability !== DRIVER_AVAILABILITY.AVAILABLE) {
+      return res.status(409).json({ error: "Driver must be AVAILABLE to accept trips" });
+    }
+    if (me.activeTrip) {
+      return res.status(409).json({ error: "Driver already has an active trip" });
+    }
+
+    // 1) Atomically assign the trip to this driver (only if still open)
+    const assignedTrip = await Trip.findOneAndUpdate(
+      {
+        _id: tripId,
+        status: TRIP_STATUS.REQUESTED,
+        $or: [{ driverProfile: { $exists: false } }, { driverProfile: null }],
+      },
+      {
+        $set: {
+          driverProfile: me._id,
+          status: TRIP_STATUS.ASSIGNED,
+          assignedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!assignedTrip) {
+      return res.status(409).json({ error: "Trip already taken or not open" });
+    }
+
+    // 2) Lock driver as BUSY + set activeTrip (guarded)
+    const updatedDriver = await DriverProfile.findOneAndUpdate(
+      {
+        _id: me._id,
+        verificationStatus: DRIVER_VERIFICATION_STATUS.VERIFIED,
+        availability: DRIVER_AVAILABILITY.AVAILABLE,
+        $or: [{ activeTrip: { $exists: false } }, { activeTrip: null }],
+      },
+      { $set: { availability: DRIVER_AVAILABILITY.BUSY, activeTrip: assignedTrip._id } },
+      { new: true }
+    );
+
+    if (!updatedDriver) {
+      // rollback trip assignment if driver couldn’t be locked (rare but possible)
+      await Trip.updateOne(
+        { _id: assignedTrip._id, driverProfile: me._id, status: TRIP_STATUS.ASSIGNED },
+        { $set: { driverProfile: null, status: TRIP_STATUS.REQUESTED }, $unset: { assignedAt: "" } }
+      );
+
+      return res.status(409).json({ error: "Could not claim trip (driver state changed). Try again." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Trip accepted successfully",
+      trip: assignedTrip,
+      driverProfile: updatedDriver,
+    });
+  } catch (err) {
+    // If the partial unique index triggers (one active trip per driver), this catches it too.
+    if (err?.code === 11000) {
+      return res.status(409).json({ error: "Driver already has an active trip" });
+    }
+    console.error("acceptTrip error:", err);
+    return res.status(500).json({ error: "Server error accepting trip" });
   }
 }
 
