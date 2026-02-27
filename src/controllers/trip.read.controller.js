@@ -2,6 +2,7 @@
 import Trip from "../models/Trip.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
 import { USER_ROLES } from "../models/constants.js";
+import { TRIP_STATUS } from "../models/constants.js";
 
 async function getMyDriverProfile(req) {
   const userId = req.user?._id;
@@ -60,6 +61,42 @@ function tripPopulate() {
       select: "_id make model year color plateNumber owner",
     },
   ];
+}
+
+/**
+ * GET /api/trips/open
+ * Driver marketplace: list REQUESTED trips not yet assigned
+ * Driver-only
+ */
+export async function getOpenTrips(req, res) {
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+
+    const role = (req.user.role || "").toUpperCase();
+    if (role !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can view open trips" });
+    }
+
+    const trips = await Trip.find({
+      status: TRIP_STATUS.REQUESTED,
+      $or: [{ driverProfile: { $exists: false } }, { driverProfile: null }],
+    })
+      .select(safeTripSelect())
+      .populate(tripPopulate())
+      .sort({ requestedAt: -1 })
+      .limit(50);
+
+    const output = trips.map((t) => {
+      const obj = t.toObject();
+      if (obj.vehicle) delete obj.vehicle.owner; // don’t leak owner to drivers
+      return obj;
+    });
+
+    return res.status(200).json({ success: true, count: output.length, trips: output });
+  } catch (err) {
+    console.error("getOpenTrips error:", err);
+    return res.status(500).json({ error: "Server error fetching open trips" });
+  }
 }
 
 /**
