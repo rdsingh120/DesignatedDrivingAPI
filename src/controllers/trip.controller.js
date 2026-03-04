@@ -292,27 +292,34 @@ export async function confirmTripFromEstimate(req, res) {
 
     // 3) Create Trip from Estimate
     const trip = await Trip.create({
-      rider: riderId,
-      vehicle: vehicle._id,
+    rider: riderId,
+    vehicle: vehicle._id,
 
-      status: TRIP_STATUS.REQUESTED,
+    status: TRIP_STATUS.REQUESTED,
 
-      pickup_latitude: estimate.pickup_latitude,
-      pickup_longitude: estimate.pickup_longitude,
-      dropoff_latitude: estimate.dropoff_latitude,
-      dropoff_longitude: estimate.dropoff_longitude,
+    pickup_address: estimate.pickup_address || undefined,
+    dropoff_address: estimate.dropoff_address || undefined,
+    pickup_display_address: estimate.pickup_display_address || undefined,
+    dropoff_display_address: estimate.dropoff_display_address || undefined,
+    geocode_provider: estimate.geocode_provider || undefined,
+    geocode_base_url: estimate.geocode_base_url || undefined,
 
-      distance_km: estimate.distance_km,
-      duration_minutes: estimate.duration_minutes,
-      route_polyline: estimate.route_polyline || null,
+    pickup_latitude: estimate.pickup_latitude,
+    pickup_longitude: estimate.pickup_longitude,
+    dropoff_latitude: estimate.dropoff_latitude,
+    dropoff_longitude: estimate.dropoff_longitude,
 
-      fare_amount: estimate.fare_total,
-      currency: estimate.currency || "CAD",
+    distance_km: estimate.distance_km,
+    duration_minutes: estimate.duration_minutes,
+    route_polyline: estimate.route_polyline || null,
 
-      requestedAt: new Date(),
-    });
+    fare_amount: estimate.fare_total,
+    currency: estimate.currency || "CAD",
 
-    return res.status(201).json({
+    requestedAt: new Date(),
+  });
+
+  return res.status(201).json({
       success: true,
       trip,
     });
@@ -321,6 +328,7 @@ export async function confirmTripFromEstimate(req, res) {
     return res.status(500).json({ error: "Server error creating trip" });
   }
 }
+
 
 export async function dispatchTrip(req, res) {
   const tripId = req.params.id;
