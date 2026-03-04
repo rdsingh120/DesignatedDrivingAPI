@@ -8,6 +8,7 @@ import vehicleRoutes from "./src/routes/vehicle.route.js";
 import estimateRoutes from "./src/routes/estimate.routes.js";
 import tripRoutes from "./src/routes/trip.route.js";
 import driverProfileRoutes from "./src/routes/driverProfile.route.js";
+import "leaflet/dist/leaflet.css";
 
 
 const server = express();
