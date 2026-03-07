@@ -4,6 +4,21 @@ function normalizeStr(s) {
   return typeof s === "string" ? s.trim() : "";
 }
 
+// Build a short human-readable address from Nominatim's structured address object.
+// e.g. "100 King Street West, Toronto, ON" instead of the full verbose display_name.
+function buildShortAddress(address, fallback) {
+  if (!address) return fallback;
+  const parts = [];
+  const street = [address.house_number, address.road].filter(Boolean).join(" ");
+  if (street) parts.push(street);
+  const city = address.city || address.town || address.village || address.municipality;
+  if (city) parts.push(city);
+  // ISO3166-2-lvl4 gives "CA-ON" — extract the province/state code after the dash
+  const province = address["ISO3166-2-lvl4"]?.split("-")[1] || address.state;
+  if (province) parts.push(province);
+  return parts.length ? parts.join(", ") : fallback;
+}
+
 export class GeocodeError extends Error {
   constructor(message, status = 400) {
     super(message);
@@ -57,7 +72,7 @@ export async function geocodeAddress(addressString) {
     return {
       lat,
       lng,
-      displayName: first.display_name || q,
+      displayName: buildShortAddress(first.address, first.display_name || q),
       raw: first,
       provider: { name: "Nominatim", baseUrl },
     };
