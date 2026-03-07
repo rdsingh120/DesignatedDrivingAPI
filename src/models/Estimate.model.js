@@ -14,6 +14,16 @@ const EstimateSchema = new Schema(
   {
     rider: { type: Schema.Types.ObjectId, ref: "User", index: true }, // optional pre-auth
 
+    // NEW: address inputs + normalized display labels
+    pickup_address: { type: String, trim: true },
+    dropoff_address: { type: String, trim: true },
+    pickup_display_address: { type: String, trim: true },
+    dropoff_display_address: { type: String, trim: true },
+
+    // NEW: geocode metadata (optional but useful)
+    geocode_provider: { type: String, default: "Nominatim" },
+    geocode_base_url: { type: String },
+
     pickup_latitude: { type: Number, required: true, validate: [isValidLat, "Invalid pickup latitude"] },
     pickup_longitude: { type: Number, required: true, validate: [isValidLng, "Invalid pickup longitude"] },
     dropoff_latitude: { type: Number, required: true, validate: [isValidLat, "Invalid dropoff latitude"] },
