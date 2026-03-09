@@ -8,7 +8,7 @@ import vehicleRoutes from "./src/routes/vehicle.route.js";
 import estimateRoutes from "./src/routes/estimate.routes.js";
 import tripRoutes from "./src/routes/trip.route.js";
 import driverProfileRoutes from "./src/routes/driverProfile.route.js";
-
+import ratingRoutes from "./src/routes/rating.routes.js";
 
 const server = express();
 
@@ -23,6 +23,7 @@ server.use("/api/estimates", estimateRoutes);
 server.use("/api/trips", tripRoutes);
 server.use("/api/vehicles", vehicleRoutes);
 server.use("/api/driver-profiles", driverProfileRoutes);
+server.use("/api/ratings", ratingRoutes);
 
 const port = process.env.PORT || 3000;
 
