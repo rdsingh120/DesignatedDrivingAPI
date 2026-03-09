@@ -44,6 +44,9 @@ function safeTripSelect() {
     "rating",
     "createdAt",
     "updatedAt",
+    "driver_eta_minutes",
+    "driver_distance_km",
+    "driver_route_polyline",
   ].join(" ");
 }
 

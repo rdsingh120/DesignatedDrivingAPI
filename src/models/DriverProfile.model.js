@@ -22,7 +22,26 @@ const DriverProfileSchema = new Schema(
       index: true,
     },
 
-    // one active trip per driver (enforced via partial unique index on Trip too)
+    current_location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        validate: {
+          validator: (v) => !v || v.length === 2,
+          message: "current_location must be [lng, lat]",
+        },
+      },
+    },
+
+    location_updated_at: {
+      type: Date,
+    },
+
+    // one active trip per driver
     activeTrip: { type: Schema.Types.ObjectId, ref: "Trip", index: true },
 
     licenseNumber: { type: String, trim: true },
@@ -33,5 +52,8 @@ const DriverProfileSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// geo index for driver location
+DriverProfileSchema.index({ current_location: "2dsphere" });
 
 export default mongoose.model("DriverProfile", DriverProfileSchema);

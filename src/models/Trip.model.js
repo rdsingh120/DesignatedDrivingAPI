@@ -17,6 +17,11 @@ const TripSchema = new Schema(
     driverProfile: { type: Schema.Types.ObjectId, ref: "DriverProfile" },
     vehicle: { type: Schema.Types.ObjectId, ref: "Vehicle", required: true, index: true },
 
+    // driver → pickup route
+    driver_eta_minutes: { type: Number, min: 0 },
+    driver_distance_km: { type: Number, min: 0 },
+    driver_route_polyline: { type: String, trim: true },
+
     status: {
       type: String,
       enum: Object.values(TRIP_STATUS),
