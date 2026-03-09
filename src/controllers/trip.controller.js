@@ -257,6 +257,61 @@ export async function acceptTrip(req, res) {
   }
 }
 
+/**
+ * POST /api/trips/:id/cancel
+ * ASSIGNED | ENROUTE -> CANCELLED
+ * Driver-only, assigned driver only
+ * Also releases driver: BUSY -> AVAILABLE, activeTrip -> null
+ */
+export async function cancelTrip(req, res) {
+  const tripId = req.params.id;
+
+  try {
+    if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
+    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can cancel trips" });
+    }
+
+    const me = await getMyDriverProfile(req);
+    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
+
+    const cancellableStatuses = [TRIP_STATUS.ASSIGNED, TRIP_STATUS.ENROUTE];
+
+    // Return trip to REQUESTED so another driver can pick it up
+    const released = await Trip.findOneAndUpdate(
+      {
+        _id: tripId,
+        driverProfile: me._id,
+        status: { $in: cancellableStatuses },
+      },
+      {
+        $set: { status: TRIP_STATUS.REQUESTED },
+        $unset: { driverProfile: "", assignedAt: "" },
+      },
+      { new: true }
+    );
+
+    if (!released) {
+      const exists = await Trip.findById(tripId).select("_id status driverProfile");
+      if (!exists) return res.status(404).json({ error: "Trip not found" });
+      if (String(exists.driverProfile || "") !== String(me._id)) {
+        return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+      }
+      return res.status(400).json({ error: "Trip cannot be cancelled from its current status" });
+    }
+
+    await DriverProfile.updateOne(
+      { _id: me._id, activeTrip: released._id },
+      { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
+    );
+
+    return res.status(200).json({ success: true, trip: released });
+  } catch (err) {
+    console.error("cancelTrip error:", err);
+    return res.status(500).json({ error: "Server error cancelling trip" });
+  }
+}
+
 export async function confirmTripFromEstimate(req, res) {
   try {
     // Expect:
@@ -292,27 +347,34 @@ export async function confirmTripFromEstimate(req, res) {
 
     // 3) Create Trip from Estimate
     const trip = await Trip.create({
-      rider: riderId,
-      vehicle: vehicle._id,
+    rider: riderId,
+    vehicle: vehicle._id,
 
-      status: TRIP_STATUS.REQUESTED,
+    status: TRIP_STATUS.REQUESTED,
 
-      pickup_latitude: estimate.pickup_latitude,
-      pickup_longitude: estimate.pickup_longitude,
-      dropoff_latitude: estimate.dropoff_latitude,
-      dropoff_longitude: estimate.dropoff_longitude,
+    pickup_address: estimate.pickup_address || undefined,
+    dropoff_address: estimate.dropoff_address || undefined,
+    pickup_display_address: estimate.pickup_display_address || undefined,
+    dropoff_display_address: estimate.dropoff_display_address || undefined,
+    geocode_provider: estimate.geocode_provider || undefined,
+    geocode_base_url: estimate.geocode_base_url || undefined,
 
-      distance_km: estimate.distance_km,
-      duration_minutes: estimate.duration_minutes,
-      route_polyline: estimate.route_polyline || null,
+    pickup_latitude: estimate.pickup_latitude,
+    pickup_longitude: estimate.pickup_longitude,
+    dropoff_latitude: estimate.dropoff_latitude,
+    dropoff_longitude: estimate.dropoff_longitude,
 
-      fare_amount: estimate.fare_total,
-      currency: estimate.currency || "CAD",
+    distance_km: estimate.distance_km,
+    duration_minutes: estimate.duration_minutes,
+    route_polyline: estimate.route_polyline || null,
 
-      requestedAt: new Date(),
-    });
+    fare_amount: estimate.fare_total,
+    currency: estimate.currency || "CAD",
 
-    return res.status(201).json({
+    requestedAt: new Date(),
+  });
+
+  return res.status(201).json({
       success: true,
       trip,
     });
@@ -321,6 +383,7 @@ export async function confirmTripFromEstimate(req, res) {
     return res.status(500).json({ error: "Server error creating trip" });
   }
 }
+
 
 export async function dispatchTrip(req, res) {
   const tripId = req.params.id;
