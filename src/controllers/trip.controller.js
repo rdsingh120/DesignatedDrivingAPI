@@ -3,6 +3,7 @@ import Estimate from "../models/Estimate.model.js";
 import Trip from "../models/Trip.model.js";
 import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
+import { getRouteOSRM } from "../services/osrm.service.js";
 import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
@@ -230,6 +231,45 @@ export async function acceptTrip(req, res) {
       { $set: { availability: DRIVER_AVAILABILITY.BUSY, activeTrip: assignedTrip._id } },
       { new: true }
     );
+
+    // Calculate route details (e.g., ETA, distance)
+    try {
+      if (
+        updatedDriver.current_location?.coordinates?.length === 2 &&
+        assignedTrip.pickup_latitude &&
+        assignedTrip.pickup_longitude
+      ) {
+        const [driverLng, driverLat] = updatedDriver.current_location.coordinates;
+
+        const route = await getRouteOSRM({
+          pickup: { lat: driverLat, lng: driverLng },
+          dropoff: {
+            lat: assignedTrip.pickup_latitude,
+            lng: assignedTrip.pickup_longitude,
+          },
+        });
+
+        const driverDistanceKm = route.distance_m / 1000;
+        const driverEtaMinutes = route.duration_s / 60;
+
+        await Trip.updateOne(
+          { _id: assignedTrip._id },
+          {
+            $set: {
+              driver_eta_minutes: driverEtaMinutes,
+              driver_distance_km: driverDistanceKm,
+              driver_route_polyline: route.polyline || null,
+            },
+          }
+        );
+
+        assignedTrip.driver_eta_minutes = driverEtaMinutes;
+        assignedTrip.driver_distance_km = driverDistanceKm;
+        assignedTrip.driver_route_polyline = route.polyline || null;
+      }
+    } catch (err) {
+      console.error("driver ETA calculation failed:", err);
+    }
 
     if (!updatedDriver) {
       // rollback trip assignment if driver couldn’t be locked (rare but possible)
