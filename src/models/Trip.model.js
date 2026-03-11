@@ -60,6 +60,7 @@ const TripSchema = new Schema(
 
     requestedAt: { type: Date, default: Date.now, index: true },
     assignedAt: { type: Date },
+    arrivedAt: { type: Date },
     startedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },

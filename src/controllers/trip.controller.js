@@ -40,7 +40,7 @@ export async function arriveTrip(req, res) {
         status: TRIP_STATUS.ASSIGNED,
       },
       {
-        $set: { status: TRIP_STATUS.ENROUTE },
+        $set: { status: TRIP_STATUS.ENROUTE, arrivedAt: new Date() },
       },
       { new: true }
     );
@@ -299,53 +299,78 @@ export async function acceptTrip(req, res) {
 
 /**
  * POST /api/trips/:id/cancel
- * ASSIGNED | ENROUTE -> CANCELLED
- * Driver-only, assigned driver only
- * Also releases driver: BUSY -> AVAILABLE, activeTrip -> null
+ * Driver: ASSIGNED | ENROUTE -> REQUESTED (returns to marketplace)
+ * Rider:  REQUESTED -> CANCELLED (no fee) | ASSIGNED -> CANCELLED (fee applies)
  */
 export async function cancelTrip(req, res) {
   const tripId = req.params.id;
+  const role = (req.user?.role || "").toUpperCase();
 
   try {
     if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
-    if ((req.user.role || "").toUpperCase() !== USER_ROLES.DRIVER) {
-      return res.status(403).json({ error: "Only drivers can cancel trips" });
-    }
 
-    const me = await getMyDriverProfile(req);
-    if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
-
-    const cancellableStatuses = [TRIP_STATUS.ASSIGNED, TRIP_STATUS.ENROUTE];
-
-    // Return trip to REQUESTED so another driver can pick it up
-    const released = await Trip.findOneAndUpdate(
-      {
-        _id: tripId,
-        driverProfile: me._id,
-        status: { $in: cancellableStatuses },
-      },
-      {
-        $set: { status: TRIP_STATUS.REQUESTED },
-        $unset: { driverProfile: "", assignedAt: "" },
-      },
-      { new: true }
-    );
-
-    if (!released) {
-      const exists = await Trip.findById(tripId).select("_id status driverProfile");
-      if (!exists) return res.status(404).json({ error: "Trip not found" });
-      if (String(exists.driverProfile || "") !== String(me._id)) {
-        return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+    // --- Rider cancel ---
+    if (role === USER_ROLES.RIDER) {
+      const trip = await Trip.findById(tripId).select("_id status rider driverProfile");
+      if (!trip) return res.status(404).json({ error: "Trip not found" });
+      if (String(trip.rider) !== String(req.user._id)) {
+        return res.status(403).json({ error: "This is not your trip" });
       }
-      return res.status(400).json({ error: "Trip cannot be cancelled from its current status" });
+
+      const cancellable = [TRIP_STATUS.REQUESTED, TRIP_STATUS.ASSIGNED];
+      if (!cancellable.includes(trip.status)) {
+        return res.status(400).json({ error: "Trip cannot be cancelled at this stage" });
+      }
+
+      const cancelled = await Trip.findByIdAndUpdate(
+        tripId,
+        { $set: { status: TRIP_STATUS.CANCELLED, cancelledAt: new Date() } },
+        { new: true }
+      );
+
+      // Release driver if one was assigned
+      if (trip.driverProfile) {
+        await DriverProfile.updateOne(
+          { _id: trip.driverProfile, activeTrip: trip._id },
+          { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
+        );
+      }
+
+      return res.status(200).json({ success: true, trip: cancelled });
     }
 
-    await DriverProfile.updateOne(
-      { _id: me._id, activeTrip: released._id },
-      { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
-    );
+    // --- Driver cancel ---
+    if (role === USER_ROLES.DRIVER) {
+      const me = await getMyDriverProfile(req);
+      if (!me) return res.status(403).json({ error: "DriverProfile not found. Create profile first." });
 
-    return res.status(200).json({ success: true, trip: released });
+      const cancellableStatuses = [TRIP_STATUS.ASSIGNED, TRIP_STATUS.ENROUTE];
+
+      // Return trip to REQUESTED so another driver can pick it up
+      const released = await Trip.findOneAndUpdate(
+        { _id: tripId, driverProfile: me._id, status: { $in: cancellableStatuses } },
+        { $set: { status: TRIP_STATUS.REQUESTED }, $unset: { driverProfile: "", assignedAt: "" } },
+        { new: true }
+      );
+
+      if (!released) {
+        const exists = await Trip.findById(tripId).select("_id status driverProfile");
+        if (!exists) return res.status(404).json({ error: "Trip not found" });
+        if (String(exists.driverProfile || "") !== String(me._id)) {
+          return res.status(403).json({ error: "You are not the assigned driver for this trip" });
+        }
+        return res.status(400).json({ error: "Trip cannot be cancelled from its current status" });
+      }
+
+      await DriverProfile.updateOne(
+        { _id: me._id, activeTrip: released._id },
+        { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
+      );
+
+      return res.status(200).json({ success: true, trip: released });
+    }
+
+    return res.status(403).json({ error: "Unauthorized role" });
   } catch (err) {
     console.error("cancelTrip error:", err);
     return res.status(500).json({ error: "Server error cancelling trip" });
