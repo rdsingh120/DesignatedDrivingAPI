@@ -40,7 +40,7 @@ export async function arriveTrip(req, res) {
         status: TRIP_STATUS.ASSIGNED,
       },
       {
-        $set: { status: TRIP_STATUS.ENROUTE },
+        $set: { status: TRIP_STATUS.ENROUTE, arrivedAt: new Date() },
       },
       { new: true }
     );
