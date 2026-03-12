@@ -26,10 +26,10 @@ const DriverProfileSchema = new Schema(
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
       },
       coordinates: {
         type: [Number], // [lng, lat]
+        default: undefined,
         validate: {
           validator: (v) => !v || v.length === 2,
           message: "current_location must be [lng, lat]",
