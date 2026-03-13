@@ -100,7 +100,6 @@ export const updateMyDriverProfile = async (req, res) => {
       phoneNumber,
       dateOfBirth,
       address,
-      vehicle,
       profilePhoto,
     } = req.body || {};
 
@@ -112,10 +111,6 @@ export const updateMyDriverProfile = async (req, res) => {
 
     if (address) {
       profile.address = { ...profile.address, ...address };
-    }
-
-    if (vehicle) {
-      profile.vehicle = { ...profile.vehicle, ...vehicle };
     }
 
     await profile.save();
