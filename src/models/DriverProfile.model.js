@@ -49,8 +49,28 @@ const DriverProfileSchema = new Schema(
 
     backgroundCheckRef: { type: String, trim: true },
     notes: { type: String, trim: true, maxlength: 1000 },
+    profilePhoto: { type: String }, // URL or uploaded path
+
+    phoneNumber: { type: String, trim: true },
+
+    dateOfBirth: { type: Date },
+
+    address: {
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      postalCode: { type: String, trim: true },
+      country: { type: String, trim: true },
+    },
+
+    vehicle: {
+      make: { type: String, trim: true },
+      model: { type: String, trim: true },
+      year: { type: Number },
+      plateNumber: { type: String, trim: true },
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // geo index for driver location
