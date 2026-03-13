@@ -14,7 +14,7 @@ export const createMyDriverProfile = async (req, res) => {
   console.log("AUTH USER:", req.user);
   console.log("ROLE:", req.user?.role);
   try {
-    const userId = req.user?._id;s
+    const userId = req.user?._id;
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
