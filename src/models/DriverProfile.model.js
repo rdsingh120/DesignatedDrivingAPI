@@ -62,13 +62,6 @@ const DriverProfileSchema = new Schema(
       postalCode: { type: String, trim: true },
       country: { type: String, trim: true },
     },
-
-    vehicle: {
-      make: { type: String, trim: true },
-      model: { type: String, trim: true },
-      year: { type: Number },
-      plateNumber: { type: String, trim: true },
-    },
   },
   { timestamps: true },
 );

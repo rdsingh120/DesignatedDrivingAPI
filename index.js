@@ -10,6 +10,10 @@ import tripRoutes from "./src/routes/trip.route.js";
 import driverProfileRoutes from "./src/routes/driverProfile.route.js";
 import ratingRoutes from "./src/routes/rating.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
+import path from "path";
+import fs from "fs";
+
+
 
 const server = express();
 
@@ -19,6 +23,14 @@ server.use(
     credentials: true,
   }),
 );
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+server.use("/uploads", express.static("uploads"));
 
 server.use(express.json());
 server.use("/api/estimates", estimateRoutes); 
