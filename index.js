@@ -15,10 +15,11 @@ const server = express();
 
 server.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: ["http://localhost:5173", process.env.CLIENT_URL],
     credentials: true,
   }),
 );
+
 server.use(express.json());
 server.use("/api/estimates", estimateRoutes); 
 server.use("/api/trips", tripRoutes);
