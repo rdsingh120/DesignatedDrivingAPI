@@ -5,8 +5,10 @@ import {
   createMyDriverProfile,
   getMyDriverProfile,
   updateMyDriverStatus,
-  updateMyDriverProfile
+  updateMyDriverProfile,
+  uploadDriverPhoto
 } from "../controllers/driverProfile.controller.js";
+import { upload } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
@@ -14,8 +16,14 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/me", createMyDriverProfile);
+router.post("/me/photo", upload.single("photo"), uploadDriverPhoto);
 router.get("/me", getMyDriverProfile);
 router.patch("/me/status", updateMyDriverStatus);
 router.patch("/me", updateMyDriverProfile);
+router.post(
+  "/me/photo",
+  upload.single("photo"),
+  uploadDriverPhoto
+);
 
 export default router;

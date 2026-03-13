@@ -10,6 +10,9 @@ import tripRoutes from "./src/routes/trip.route.js";
 import driverProfileRoutes from "./src/routes/driverProfile.route.js";
 import ratingRoutes from "./src/routes/rating.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
+import path from "path";
+
+
 
 const server = express();
 
@@ -19,6 +22,8 @@ server.use(
     credentials: true,
   }),
 );
+
+server.use("/uploads", express.static("uploads"));
 
 server.use(express.json());
 server.use("/api/estimates", estimateRoutes); 

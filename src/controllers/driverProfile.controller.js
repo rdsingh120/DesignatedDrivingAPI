@@ -11,9 +11,9 @@ import {
  * Create driver profile for logged-in driver
  */
 export const createMyDriverProfile = async (req, res) => {
-    console.log("AUTH USER:", req.user);
-    console.log("ROLE:", req.user?.role);
-    try {
+  console.log("AUTH USER:", req.user);
+  console.log("ROLE:", req.user?.role);
+  try {
     const userId = req.user?._id;
 
     if (!userId) {
@@ -94,14 +94,8 @@ export const updateMyDriverProfile = async (req, res) => {
       return res.status(404).json({ error: "Driver profile not found" });
     }
 
-    const {
-      licenseNumber,
-      licenseExpiry,
-      phoneNumber,
-      dateOfBirth,
-      address,
-      profilePhoto,
-    } = req.body || {};
+    const { licenseNumber, licenseExpiry, phoneNumber, dateOfBirth, address, profilePhoto } =
+      req.body || {};
 
     if (licenseNumber) profile.licenseNumber = licenseNumber;
     if (licenseExpiry) profile.licenseExpiry = licenseExpiry;
@@ -163,10 +157,7 @@ export const updateMyDriverStatus = async (req, res) => {
       }
 
       // Prevent marking AVAILABLE while already assigned
-      if (
-        availability === DRIVER_AVAILABILITY.AVAILABLE &&
-        profile.activeTrip
-      ) {
+      if (availability === DRIVER_AVAILABILITY.AVAILABLE && profile.activeTrip) {
         return res.status(400).json({
           error: "Cannot set AVAILABLE while assigned to an active trip",
         });
@@ -184,5 +175,34 @@ export const updateMyDriverStatus = async (req, res) => {
   } catch (err) {
     console.error("updateMyDriverStatus error:", err);
     return res.status(500).json({ error: "Server error updating driver status" });
+  }
+};
+
+export const uploadDriverPhoto = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No photo uploaded" });
+    }
+
+    const profile = await DriverProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Driver profile not found" });
+    }
+
+    profile.profilePhoto = `/uploads/${req.file.filename}`;
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      profilePhoto: profile.profilePhoto,
+      driverProfile: profile,
+    });
+  } catch (err) {
+    console.error("uploadDriverPhoto error:", err);
+    return res.status(500).json({ error: "Server error uploading photo" });
   }
 };
