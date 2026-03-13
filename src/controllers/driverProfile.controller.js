@@ -77,6 +77,60 @@ export const getMyDriverProfile = async (req, res) => {
 };
 
 /**
+ * PATCH /api/driver-profiles/me
+ * Update driver profile information
+ */
+export const updateMyDriverProfile = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const profile = await DriverProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Driver profile not found" });
+    }
+
+    const {
+      licenseNumber,
+      licenseExpiry,
+      phoneNumber,
+      dateOfBirth,
+      address,
+      vehicle,
+      profilePhoto,
+    } = req.body || {};
+
+    if (licenseNumber) profile.licenseNumber = licenseNumber;
+    if (licenseExpiry) profile.licenseExpiry = licenseExpiry;
+    if (phoneNumber) profile.phoneNumber = phoneNumber;
+    if (dateOfBirth) profile.dateOfBirth = dateOfBirth;
+    if (profilePhoto) profile.profilePhoto = profilePhoto;
+
+    if (address) {
+      profile.address = { ...profile.address, ...address };
+    }
+
+    if (vehicle) {
+      profile.vehicle = { ...profile.vehicle, ...vehicle };
+    }
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      driverProfile: profile,
+    });
+  } catch (err) {
+    console.error("updateMyDriverProfile error:", err);
+    return res.status(500).json({ error: "Server error updating driver profile" });
+  }
+};
+
+/**
  * PATCH /api/driver-profiles/me/status
  * Update verificationStatus and availability
  */
