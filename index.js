@@ -12,6 +12,7 @@ import ratingRoutes from "./src/routes/rating.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import path from "path";
 import fs from "fs";
+import driverRoutes from "./src/routes/driver.route.js";
 
 
 
@@ -39,6 +40,7 @@ server.use("/api/vehicles", vehicleRoutes);
 server.use("/api/driver-profiles", driverProfileRoutes);
 server.use("/api/ratings", ratingRoutes);
 server.use("/api/users", userRoutes);
+server.use("/api/drivers", driverRoutes);
 
 const port = process.env.PORT || 3000;
 
