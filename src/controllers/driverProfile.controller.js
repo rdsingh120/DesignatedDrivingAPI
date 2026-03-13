@@ -215,7 +215,33 @@ export const verifyDriverProfile = async (req, res) => {
       return res.status(400).json({ error: "Invalid verificationStatus value" });
     }
 
-    const profile = await DriverProfile.findById(req.params.id).populate("user", "_id name email");
+    const profile = await DriverProfile.findById(req.params.id).populate(
+      "user",
+      "_id name email"
+    );
+
+    if (!profile) {
+      return res.status(404).json({ error: "Driver profile not found" });
+    }
+
+    profile.verificationStatus = verificationStatus;
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      driverProfile: profile,
+    });
+  } catch (err) {
+    console.error("verifyDriverProfile error:", err);
+    return res.status(500).json({ error: "Server error verifying driver profile" });
+  }
+};
+
+/**
+ * POST /api/driver-profiles/me/photo
+ * Upload driver profile photo
+ */
 export const uploadDriverPhoto = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -230,13 +256,6 @@ export const uploadDriverPhoto = async (req, res) => {
       return res.status(404).json({ error: "Driver profile not found" });
     }
 
-    profile.verificationStatus = verificationStatus;
-    await profile.save();
-
-    return res.status(200).json({ success: true, driverProfile: profile });
-  } catch (err) {
-    console.error("verifyDriverProfile error:", err);
-    return res.status(500).json({ error: "Server error verifying driver profile" });
     profile.profilePhoto = `/uploads/${req.file.filename}`;
 
     await profile.save();
