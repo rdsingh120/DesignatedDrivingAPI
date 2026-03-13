@@ -59,7 +59,7 @@ function tripPopulate() {
 
     {
       path: "driverProfile",
-      select: "_id availability verificationStatus user",
+      select: "_id availability verificationStatus phoneNumber profilePhoto user",
       populate: { path: "user", select: "_id name" },
     },
 
