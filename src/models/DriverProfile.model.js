@@ -23,18 +23,15 @@ const DriverProfileSchema = new Schema(
     },
 
     current_location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [lng, lat]
-        validate: {
-          validator: (v) => !v || v.length === 2,
-          message: "current_location must be [lng, lat]",
-        },
-      },
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number],
+      default: [-79.3832, 43.6532], // Toronto fallback
+    },
     },
 
     location_updated_at: {
