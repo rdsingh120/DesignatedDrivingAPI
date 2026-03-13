@@ -131,16 +131,20 @@ export async function getTripById(req, res) {
     const isRider = String(trip.rider?._id || trip.rider) === userId;
 
     let isAssignedDriver = false;
-    if (role === USER_ROLES.DRIVER) {
-      const me = await getMyDriverProfile(req);
-      if (me && trip.driverProfile && String(trip.driverProfile._id) === String(me._id)) {
-        isAssignedDriver = true;
-      }
-    }
+let isMarketplaceDriver = false;
+if (role === USER_ROLES.DRIVER) {
+  const me = await getMyDriverProfile(req);
+  if (me && trip.driverProfile && String(trip.driverProfile._id) === String(me._id)) {
+    isAssignedDriver = true;
+  }
+  if (trip.status === TRIP_STATUS.REQUESTED && !trip.driverProfile) {
+    isMarketplaceDriver = true;
+  }
+}
 
-    if (!isRider && !isAssignedDriver) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+if (!isRider && !isAssignedDriver && !isMarketplaceDriver) {
+  return res.status(403).json({ error: "Forbidden" });
+}
 
     const out = trip.toObject();
 

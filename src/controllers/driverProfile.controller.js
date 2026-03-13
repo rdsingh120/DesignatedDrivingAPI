@@ -178,6 +178,44 @@ export const updateMyDriverStatus = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/driver-profiles/all
+ * Admin only — list all driver profiles
+ */
+export const getAllDriverProfiles = async (req, res) => {
+  try {
+    if (req.user.role !== USER_ROLES.ADMIN) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+
+    const profiles = await DriverProfile.find()
+      .populate("user", "_id name email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, driverProfiles: profiles });
+  } catch (err) {
+    console.error("getAllDriverProfiles error:", err);
+    return res.status(500).json({ error: "Server error fetching driver profiles" });
+  }
+};
+
+/**
+ * PATCH /api/driver-profiles/:id/verify
+ * Admin only — set verificationStatus on any driver profile
+ */
+export const verifyDriverProfile = async (req, res) => {
+  try {
+    if (req.user.role !== USER_ROLES.ADMIN) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+
+    const { verificationStatus } = req.body || {};
+
+    if (!Object.values(DRIVER_VERIFICATION_STATUS).includes(verificationStatus)) {
+      return res.status(400).json({ error: "Invalid verificationStatus value" });
+    }
+
+    const profile = await DriverProfile.findById(req.params.id).populate("user", "_id name email");
 export const uploadDriverPhoto = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -192,6 +230,13 @@ export const uploadDriverPhoto = async (req, res) => {
       return res.status(404).json({ error: "Driver profile not found" });
     }
 
+    profile.verificationStatus = verificationStatus;
+    await profile.save();
+
+    return res.status(200).json({ success: true, driverProfile: profile });
+  } catch (err) {
+    console.error("verifyDriverProfile error:", err);
+    return res.status(500).json({ error: "Server error verifying driver profile" });
     profile.profilePhoto = `/uploads/${req.file.filename}`;
 
     await profile.save();

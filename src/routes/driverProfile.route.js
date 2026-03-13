@@ -1,6 +1,7 @@
 // src/routes/driverProfile.route.js
 import express from "express";
 import { protect } from "../middleware/auth.middleware.js";
+import { getAllDriverProfiles, verifyDriverProfile } from "../controllers/driverProfile.controller.js";
 import {
   createMyDriverProfile,
   getMyDriverProfile,
@@ -25,5 +26,8 @@ router.post(
   upload.single("photo"),
   uploadDriverPhoto
 );
+
+router.get("/all", getAllDriverProfiles);
+router.patch("/:id/verify", verifyDriverProfile);
 
 export default router;
