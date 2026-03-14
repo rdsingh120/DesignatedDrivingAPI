@@ -125,8 +125,6 @@ export async function getTripById(req, res) {
       .populate(tripPopulate());
 
     if (!trip) return res.status(404).json({ error: "Trip not found" });
-      console.log("Driver coords:", trip.driverProfile.current_location);
-      console.log("Pickup:", trip.pickup_latitude, trip.pickup_longitude);
     // Admin can view anything
     if (role === USER_ROLES.ADMIN) {
       return res.status(200).json({ success: true, trip });
