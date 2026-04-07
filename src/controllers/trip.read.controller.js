@@ -59,7 +59,7 @@ function tripPopulate() {
 
     {
       path: "driverProfile",
-      select: "_id availability verificationStatus user",
+      select: "_id availability verificationStatus user current_location location_updated_at",
       populate: { path: "user", select: "_id name" },
     },
 

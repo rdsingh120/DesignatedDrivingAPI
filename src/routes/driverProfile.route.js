@@ -5,6 +5,7 @@ import {
   createMyDriverProfile,
   getMyDriverProfile,
   updateMyDriverStatus,
+  updateMyDriverLocation,
 } from "../controllers/driverProfile.controller.js";
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.use(protect);
 router.post("/me", createMyDriverProfile);
 router.get("/me", getMyDriverProfile);
 router.patch("/me/status", updateMyDriverStatus);
+router.patch("/me/location", updateMyDriverLocation);
 
 export default router;
