@@ -3,6 +3,7 @@ import Trip from "../models/Trip.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
 import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS } from "../models/constants.js";
+import { getRouteOSRM } from "../services/osrm.service.js";
 
 async function getMyDriverProfile(req) {
   const userId = req.user?._id;
@@ -59,7 +60,9 @@ function tripPopulate() {
 
     {
       path: "driverProfile",
-      select: "_id availability verificationStatus user current_location location_updated_at",
+
+      select: "_id availability verificationStatus user current_location location_updated_at phoneNumber profilePhoto",
+ 
       populate: { path: "user", select: "_id name" },
     },
 
@@ -68,6 +71,7 @@ function tripPopulate() {
       select: "_id make model year color plateNumber owner",
     },
   ];
+
 }
 
 /**
@@ -111,6 +115,7 @@ export async function getOpenTrips(req, res) {
  */
 export async function getTripById(req, res) {
   try {
+
     if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
 
     const role = (req.user.role || "").toUpperCase();
@@ -122,7 +127,6 @@ export async function getTripById(req, res) {
       .populate(tripPopulate());
 
     if (!trip) return res.status(404).json({ error: "Trip not found" });
-
     // Admin can view anything
     if (role === USER_ROLES.ADMIN) {
       return res.status(200).json({ success: true, trip });
@@ -131,19 +135,48 @@ export async function getTripById(req, res) {
     const isRider = String(trip.rider?._id || trip.rider) === userId;
 
     let isAssignedDriver = false;
-    if (role === USER_ROLES.DRIVER) {
-      const me = await getMyDriverProfile(req);
-      if (me && trip.driverProfile && String(trip.driverProfile._id) === String(me._id)) {
-        isAssignedDriver = true;
-      }
-    }
+let isMarketplaceDriver = false;
+if (role === USER_ROLES.DRIVER) {
+  const me = await getMyDriverProfile(req);
+  if (me && trip.driverProfile && String(trip.driverProfile._id) === String(me._id)) {
+    isAssignedDriver = true;
+  }
+  if (trip.status === TRIP_STATUS.REQUESTED && !trip.driverProfile) {
+    isMarketplaceDriver = true;
+  }
+}
 
-    if (!isRider && !isAssignedDriver) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+if (!isRider && !isAssignedDriver && !isMarketplaceDriver) {
+  return res.status(403).json({ error: "Forbidden" });
+}
 
     const out = trip.toObject();
+    // --- Recalculate driver ETA for rider polling ---
+    try {
+      if (
+        trip.driverProfile &&
+        trip.driverProfile.current_location?.coordinates?.length === 2 &&
+        trip.pickup_latitude &&
+        trip.pickup_longitude
+      ) {
+        const [driverLng, driverLat] = trip.driverProfile.current_location.coordinates;
 
+        const route = await getRouteOSRM({
+          pickup: { lat: driverLat, lng: driverLng },
+          dropoff: {
+            lat: trip.pickup_latitude,
+            lng: trip.pickup_longitude,
+          },
+        });
+
+        out.driver_distance_km = route.distance_m / 1000;
+        out.driver_eta_minutes = route.duration_s / 60;
+        out.driver_route_polyline = route.polyline || null;
+      }
+    } catch (err) {
+      console.error("Live ETA calculation failed:", err);
+    }
+    //
     // Hide vehicle.owner from drivers
     if (role === USER_ROLES.DRIVER && out.vehicle) {
       delete out.vehicle.owner;
@@ -154,6 +187,7 @@ export async function getTripById(req, res) {
     console.error("getTripById error:", err);
     return res.status(500).json({ error: "Server error fetching trip" });
   }
+  
 }
 
 /**
