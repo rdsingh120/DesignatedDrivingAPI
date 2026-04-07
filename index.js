@@ -20,7 +20,9 @@ const server = express();
 
 server.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL],
+    origin: ["http://localhost:5173", process.env.CLIENT_URL
+      ,"https://deploy-preview-24--drivly-project.netlify.app",
+    ],
     credentials: true,
   }),
 );
