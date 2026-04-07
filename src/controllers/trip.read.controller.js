@@ -60,9 +60,7 @@ function tripPopulate() {
 
     {
       path: "driverProfile",
-
-      select: "_id availability verificationStatus user current_location location_updated_at phoneNumber profilePhoto",
- 
+      select: "_id availability verificationStatus phoneNumber profilePhoto user",
       populate: { path: "user", select: "_id name" },
     },
 
