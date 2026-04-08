@@ -53,6 +53,9 @@ const DriverProfileSchema = new Schema(
 
     phoneNumber: { type: String, trim: true },
 
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    ratingCount: { type: Number, default: 0, min: 0 },
+
     dateOfBirth: { type: Date },
 
     address: {

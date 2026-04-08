@@ -46,6 +46,12 @@ const RatingSchema = new Schema(
       maxlength: 800
     },
 
+    tip_amount: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+
     createdAtClient: {
       type: Date
     }
