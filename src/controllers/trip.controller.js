@@ -5,6 +5,7 @@ import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
 import Notification, { NOTIFICATION_TYPES } from "../models/Notification.model.js";
 import { getRouteOSRM } from "../services/osrm.service.js";
+import { sendToUser } from "../services/sse.service.js";
 import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
@@ -63,7 +64,7 @@ export async function arriveTrip(req, res) {
       type: NOTIFICATION_TYPES.DRIVER_ARRIVED,
       title: "Driver Arrived",
       message: "Your driver has arrived at the pickup location. Please head outside!",
-    }).catch((err) => console.error("Failed to create DRIVER_ARRIVED notification:", err));
+    }).then((n) => sendToUser(updated.rider, n)).catch((err) => console.error("Failed to create DRIVER_ARRIVED notification:", err));
 
     return res.status(200).json({ success: true, trip: updated });
   } catch (err) {
@@ -112,6 +113,14 @@ export async function startTrip(req, res) {
       }
       return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.ENROUTE} to start` });
     }
+
+    Notification.create({
+      user: updated.rider,
+      trip: updated._id,
+      type: NOTIFICATION_TYPES.TRIP_STARTED,
+      title: "Trip Started",
+      message: "Your driver has started the trip. Sit back and enjoy the ride!",
+    }).then((n) => sendToUser(updated.rider, n)).catch((err) => console.error("Failed to create TRIP_STARTED notification:", err));
 
     return res.status(200).json({ success: true, trip: updated });
   } catch (err) {
@@ -176,7 +185,7 @@ export async function completeTrip(req, res) {
       type: NOTIFICATION_TYPES.TRIP_COMPLETED,
       title: "Trip Completed",
       message: "You've arrived! Please take a moment to rate your driver.",
-    }).catch((err) => console.error("Failed to create TRIP_COMPLETED notification:", err));
+    }).then((n) => sendToUser(completed.rider, n)).catch((err) => console.error("Failed to create TRIP_COMPLETED notification:", err));
 
     return res.status(200).json({
       success: true,
@@ -307,7 +316,7 @@ export async function acceptTrip(req, res) {
       type: NOTIFICATION_TYPES.TRIP_ACCEPTED,
       title: "Driver Accepted",
       message: "A driver has accepted your trip request and is on the way to pick you up!",
-    }).catch((err) => console.error("Failed to create TRIP_ACCEPTED notification:", err));
+    }).then((n) => sendToUser(assignedTrip.rider, n)).catch((err) => console.error("Failed to create TRIP_ACCEPTED notification:", err));
 
     return res.status(200).json({
       success: true,
@@ -402,7 +411,7 @@ export async function cancelTrip(req, res) {
         type: NOTIFICATION_TYPES.TRIP_CANCELLED,
         title: "Driver Cancelled",
         message: "Your driver has cancelled the trip. We're finding you a new driver.",
-      }).catch((err) => console.error("Failed to create TRIP_CANCELLED notification:", err));
+      }).then((n) => sendToUser(released.rider, n)).catch((err) => console.error("Failed to create TRIP_CANCELLED notification:", err));
 
       return res.status(200).json({ success: true, trip: released });
     }

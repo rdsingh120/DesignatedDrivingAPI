@@ -1,4 +1,7 @@
+import jwt from "jsonwebtoken";
+import User from "../models/User.model.js";
 import Notification from "../models/Notification.model.js";
+import { addConnection, removeConnection } from "../services/sse.service.js";
 
 /**
  * GET /api/notifications
@@ -59,5 +62,41 @@ export async function markAsRead(req, res) {
   } catch (err) {
     console.error("markAsRead error:", err);
     return res.status(500).json({ error: "Server error marking notification as read" });
+  }
+}
+
+/**
+ * GET /api/notifications/stream?token=<jwt>
+ * Opens a persistent SSE connection for the authenticated user.
+ * EventSource doesn't support headers, so the JWT is passed as a query param.
+ */
+export async function streamNotifications(req, res) {
+  try {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: "No token provided" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("_id");
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    // Send a heartbeat every 30s to keep the connection alive through proxies
+    const heartbeat = setInterval(() => {
+      try { res.write(": heartbeat\n\n"); } catch (_) {}
+    }, 30000);
+
+    addConnection(user._id, res);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      removeConnection(user._id, res);
+    });
+  } catch (err) {
+    console.error("streamNotifications error:", err);
+    return res.status(401).json({ error: "Unauthorized" });
   }
 }
