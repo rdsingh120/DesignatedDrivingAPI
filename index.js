@@ -13,6 +13,7 @@ import userRoutes from "./src/routes/user.routes.js";
 import path from "path";
 import fs from "fs";
 import driverRoutes from "./src/routes/driver.route.js";
+import notificationRoutes from "./src/routes/notification.route.js";
 
 
 
@@ -43,6 +44,7 @@ server.use("/api/driver-profiles", driverProfileRoutes);
 server.use("/api/ratings", ratingRoutes);
 server.use("/api/users", userRoutes);
 server.use("/api/drivers", driverRoutes);
+server.use("/api/notifications", notificationRoutes);
 
 const port = process.env.PORT || 3000;
 
