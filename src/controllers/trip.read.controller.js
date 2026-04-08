@@ -68,6 +68,11 @@ function tripPopulate() {
       path: "vehicle",
       select: "_id make model year color plateNumber owner",
     },
+
+    {
+      path: "rating",
+      select: "stars tip_amount",
+    },
   ];
 
 }
