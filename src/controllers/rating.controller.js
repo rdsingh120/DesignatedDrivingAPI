@@ -1,5 +1,6 @@
 import Rating from "../models/Rating.model.js";
 import Trip from "../models/Trip.model.js";
+import DriverProfile from "../models/DriverProfile.model.js";
 
 export const createRating = async (req, res) => {
   try {
@@ -44,6 +45,17 @@ export const createRating = async (req, res) => {
     });
 
     await Trip.findByIdAndUpdate(tripId, { rating: rating._id });
+
+    // Recompute and cache average rating on DriverProfile when a rider rates a driver
+    if (targetType === "DRIVER") {
+      const allRatings = await Rating.find({ targetUser: targetUser, targetType: "DRIVER" });
+      const count = allRatings.length;
+      const avg = count === 0 ? 0 : allRatings.reduce((sum, r) => sum + r.stars, 0) / count;
+      await DriverProfile.findOneAndUpdate(
+        { user: targetUser },
+        { averageRating: Math.round(avg * 10) / 10, ratingCount: count }
+      );
+    }
 
     res.status(201).json({
       success: true,
