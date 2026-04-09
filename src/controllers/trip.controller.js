@@ -3,7 +3,9 @@ import Estimate from "../models/Estimate.model.js";
 import Trip from "../models/Trip.model.js";
 import Vehicle from "../models/Vehicle.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
+import Notification, { NOTIFICATION_TYPES } from "../models/Notification.model.js";
 import { getRouteOSRM } from "../services/osrm.service.js";
+import { sendToUser } from "../services/sse.service.js";
 import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS, DRIVER_VERIFICATION_STATUS, DRIVER_AVAILABILITY } from "../models/constants.js";
 
@@ -55,6 +57,15 @@ export async function arriveTrip(req, res) {
       return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.ASSIGNED} to arrive` });
     }
 
+    // Notify the rider that the driver has arrived
+    Notification.create({
+      user: updated.rider,
+      trip: updated._id,
+      type: NOTIFICATION_TYPES.DRIVER_ARRIVED,
+      title: "Driver Arrived",
+      message: "Your driver has arrived at the pickup location. Please head outside!",
+    }).then((n) => sendToUser(updated.rider, n)).catch((err) => console.error("Failed to create DRIVER_ARRIVED notification:", err));
+
     return res.status(200).json({ success: true, trip: updated });
   } catch (err) {
     console.error("arriveTrip error:", err);
@@ -102,6 +113,14 @@ export async function startTrip(req, res) {
       }
       return res.status(400).json({ error: `Trip must be ${TRIP_STATUS.ENROUTE} to start` });
     }
+
+    Notification.create({
+      user: updated.rider,
+      trip: updated._id,
+      type: NOTIFICATION_TYPES.TRIP_STARTED,
+      title: "Trip Started",
+      message: "Your driver has started the trip. Sit back and enjoy the ride!",
+    }).then((n) => sendToUser(updated.rider, n)).catch((err) => console.error("Failed to create TRIP_STARTED notification:", err));
 
     return res.status(200).json({ success: true, trip: updated });
   } catch (err) {
@@ -158,6 +177,15 @@ export async function completeTrip(req, res) {
       { _id: me._id, activeTrip: completed._id },
       { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
     );
+
+    // Notify the rider that the trip is complete and prompt for feedback
+    Notification.create({
+      user: completed.rider,
+      trip: completed._id,
+      type: NOTIFICATION_TYPES.TRIP_COMPLETED,
+      title: "Trip Completed",
+      message: "You've arrived! Please take a moment to rate your driver.",
+    }).then((n) => sendToUser(completed.rider, n)).catch((err) => console.error("Failed to create TRIP_COMPLETED notification:", err));
 
     return res.status(200).json({
       success: true,
@@ -281,6 +309,15 @@ export async function acceptTrip(req, res) {
       return res.status(409).json({ error: "Could not claim trip (driver state changed). Try again." });
     }
 
+    // Notify the rider that a driver has accepted their request
+    Notification.create({
+      user: assignedTrip.rider,
+      trip: assignedTrip._id,
+      type: NOTIFICATION_TYPES.TRIP_ACCEPTED,
+      title: "Driver Accepted",
+      message: "A driver has accepted your trip request and is on the way to pick you up!",
+    }).then((n) => sendToUser(assignedTrip.rider, n)).catch((err) => console.error("Failed to create TRIP_ACCEPTED notification:", err));
+
     return res.status(200).json({
       success: true,
       message: "Trip accepted successfully",
@@ -366,6 +403,15 @@ export async function cancelTrip(req, res) {
         { _id: me._id, activeTrip: released._id },
         { $set: { availability: DRIVER_AVAILABILITY.AVAILABLE, activeTrip: null } }
       );
+
+      // Notify the rider that the driver cancelled
+      Notification.create({
+        user: released.rider,
+        trip: released._id,
+        type: NOTIFICATION_TYPES.TRIP_CANCELLED,
+        title: "Driver Cancelled",
+        message: "Your driver has cancelled the trip. We're finding you a new driver.",
+      }).then((n) => sendToUser(released.rider, n)).catch((err) => console.error("Failed to create TRIP_CANCELLED notification:", err));
 
       return res.status(200).json({ success: true, trip: released });
     }
