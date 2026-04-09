@@ -23,15 +23,18 @@ const DriverProfileSchema = new Schema(
     },
 
     current_location: {
-    type: {
-      type: String,
-      enum: ["Point"],
-      default: "Point",
-    },
-    coordinates: {
-      type: [Number],
-      default: [-79.3832, 43.6532], // Toronto fallback
-    },
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        default: undefined,
+        validate: {
+          validator: (v) => !v || v.length === 2,
+          message: "current_location must be [lng, lat]",
+        },
+      },
     },
 
     location_updated_at: {
@@ -46,8 +49,24 @@ const DriverProfileSchema = new Schema(
 
     backgroundCheckRef: { type: String, trim: true },
     notes: { type: String, trim: true, maxlength: 1000 },
+    profilePhoto: { type: String }, // URL or uploaded path
+
+    phoneNumber: { type: String, trim: true },
+
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    ratingCount: { type: Number, default: 0, min: 0 },
+
+    dateOfBirth: { type: Date },
+
+    address: {
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      postalCode: { type: String, trim: true },
+      country: { type: String, trim: true },
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // geo index for driver location
