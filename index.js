@@ -13,6 +13,10 @@ import userRoutes from "./src/routes/user.routes.js";
 import savedLocationRoutes from "./src/routes/savedLocation.route.js";
 import path from "path";
 import fs from "fs";
+import driverRoutes from "./src/routes/driver.route.js";
+import notificationRoutes from "./src/routes/notification.route.js";
+import incidentReportRoutes from "./src/routes/incidentReport.route.js";
+import analyticsRoutes from "./src/routes/analytics.route.js";
 
 
 
@@ -42,6 +46,11 @@ server.use("/api/vehicles", vehicleRoutes);
 server.use("/api/driver-profiles", driverProfileRoutes);
 server.use("/api/ratings", ratingRoutes);
 server.use("/api/users", userRoutes);
+server.use("/api/drivers", driverRoutes);
+server.use("/api/notifications", notificationRoutes);
+server.use("/api/saved-locations", savedLocationRoutes);
+server.use("/api/incident-reports", incidentReportRoutes);
+server.use("/api/analytics", analyticsRoutes);
 
 const port = process.env.PORT || 3000;
 
