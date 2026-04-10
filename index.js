@@ -15,6 +15,7 @@ import path from "path";
 import fs from "fs";
 import driverRoutes from "./src/routes/driver.route.js";
 import notificationRoutes from "./src/routes/notification.route.js";
+import incidentRoutes from "./src/routes/incident.route.js";
 
 
 
@@ -22,8 +23,11 @@ const server = express();
 
 server.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL
-      ,"https://deploy-preview-24--drivly-project.netlify.app",
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      process.env.CLIENT_URL,
+      "https://deploy-preview-24--drivly-project.netlify.app",
     ],
     credentials: true,
   }),
@@ -47,6 +51,7 @@ server.use("/api/users", userRoutes);
 server.use("/api/drivers", driverRoutes);
 server.use("/api/notifications", notificationRoutes);
 server.use("/api/saved-locations", savedLocationRoutes);
+server.use("/api/trips", incidentRoutes);
 
 const port = process.env.PORT || 3000;
 
