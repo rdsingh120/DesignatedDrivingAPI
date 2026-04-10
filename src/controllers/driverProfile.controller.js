@@ -179,6 +179,72 @@ export const updateMyDriverStatus = async (req, res) => {
 };
 
 /**
+ * PATCH /api/driver-profiles/me/location
+ * Update current driver's live location
+ */
+export const updateMyDriverLocation = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (req.user.role !== USER_ROLES.DRIVER) {
+      return res.status(403).json({ error: "Only drivers can update live location" });
+    }
+
+    const { latitude, longitude } = req.body || {};
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ error: "Valid latitude and longitude are required" });
+    }
+
+    if (lat < -90 || lat > 90) {
+      return res.status(400).json({ error: "Latitude must be between -90 and 90" });
+    }
+
+    if (lng < -180 || lng > 180) {
+      return res.status(400).json({ error: "Longitude must be between -180 and 180" });
+    }
+
+    const profile = await DriverProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Driver profile not found. Create profile first." });
+    }
+
+    if (!profile.activeTrip) {
+      return res.status(400).json({
+        error: "Location updates are only allowed while assigned to an active trip",
+      });
+    }
+
+    profile.current_location = {
+      type: "Point",
+      coordinates: [lng, lat],
+    };
+
+    profile.location_updated_at = new Date();
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Driver location updated successfully",
+      current_location: profile.current_location,
+      location_updated_at: profile.location_updated_at,
+    });
+  } catch (err) {
+    console.error("updateMyDriverLocation error:", err);
+    return res.status(500).json({ error: "Server error updating driver location" });
+  }
+};
+
+/**
  * GET /api/driver-profiles/all
  * Admin only — list all driver profiles
  */

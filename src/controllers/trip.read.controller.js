@@ -1,8 +1,41 @@
 // src/controllers/trip.read.controller.js
 import Trip from "../models/Trip.model.js";
 import DriverProfile from "../models/DriverProfile.model.js";
+import Rating from "../models/Rating.model.js";
 import { USER_ROLES } from "../models/constants.js";
 import { TRIP_STATUS } from "../models/constants.js";
+import { getRouteOSRM } from "../services/osrm.service.js";
+
+/**
+ * If the trip's driverProfile has ratingCount === 0, check the Rating collection
+ * directly in case the cached fields haven't been populated yet (e.g. existing data).
+ */
+async function injectDriverRating(tripObj) {
+  const dp = tripObj.driverProfile;
+  if (!dp || dp.ratingCount > 0) return tripObj;
+
+  const driverUserId = dp.user?._id || dp.user;
+  if (!driverUserId) return tripObj;
+
+  const ratings = await Rating.find({ targetUser: driverUserId, targetType: "DRIVER" });
+  if (ratings.length === 0) return tripObj;
+
+  const count = ratings.length;
+  const avg = ratings.reduce((sum, r) => sum + r.stars, 0) / count;
+  tripObj.driverProfile = {
+    ...dp,
+    averageRating: Math.round(avg * 10) / 10,
+    ratingCount: count,
+  };
+
+  // Backfill the cached value so future reads are fast
+  DriverProfile.findByIdAndUpdate(dp._id, {
+    averageRating: Math.round(avg * 10) / 10,
+    ratingCount: count,
+  }).catch(() => {});
+
+  return tripObj;
+}
 
 async function getMyDriverProfile(req) {
   const userId = req.user?._id;
@@ -59,7 +92,7 @@ function tripPopulate() {
 
     {
       path: "driverProfile",
-      select: "_id availability verificationStatus user",
+      select: "_id availability verificationStatus phoneNumber profilePhoto user averageRating ratingCount",
       populate: { path: "user", select: "_id name" },
     },
 
@@ -67,7 +100,13 @@ function tripPopulate() {
       path: "vehicle",
       select: "_id make model year color plateNumber owner",
     },
+
+    {
+      path: "rating",
+      select: "stars tip_amount",
+    },
   ];
+
 }
 
 /**
@@ -111,6 +150,7 @@ export async function getOpenTrips(req, res) {
  */
 export async function getTripById(req, res) {
   try {
+
     if (!req.user?._id) return res.status(401).json({ error: "Unauthorized" });
 
     const role = (req.user.role || "").toUpperCase();
@@ -122,10 +162,10 @@ export async function getTripById(req, res) {
       .populate(tripPopulate());
 
     if (!trip) return res.status(404).json({ error: "Trip not found" });
-
     // Admin can view anything
     if (role === USER_ROLES.ADMIN) {
-      return res.status(200).json({ success: true, trip });
+      const adminOut = await injectDriverRating(trip.toObject());
+      return res.status(200).json({ success: true, trip: adminOut });
     }
 
     const isRider = String(trip.rider?._id || trip.rider) === userId;
@@ -146,8 +186,33 @@ if (!isRider && !isAssignedDriver && !isMarketplaceDriver) {
   return res.status(403).json({ error: "Forbidden" });
 }
 
-    const out = trip.toObject();
+    let out = await injectDriverRating(trip.toObject());
+    // --- Recalculate driver ETA for rider polling ---
+    try {
+      if (
+        trip.driverProfile &&
+        trip.driverProfile.current_location?.coordinates?.length === 2 &&
+        trip.pickup_latitude &&
+        trip.pickup_longitude
+      ) {
+        const [driverLng, driverLat] = trip.driverProfile.current_location.coordinates;
 
+        const route = await getRouteOSRM({
+          pickup: { lat: driverLat, lng: driverLng },
+          dropoff: {
+            lat: trip.pickup_latitude,
+            lng: trip.pickup_longitude,
+          },
+        });
+
+        out.driver_distance_km = route.distance_m / 1000;
+        out.driver_eta_minutes = route.duration_s / 60;
+        out.driver_route_polyline = route.polyline || null;
+      }
+    } catch (err) {
+      console.error("Live ETA calculation failed:", err);
+    }
+    //
     // Hide vehicle.owner from drivers
     if (role === USER_ROLES.DRIVER && out.vehicle) {
       delete out.vehicle.owner;
@@ -158,6 +223,7 @@ if (!isRider && !isAssignedDriver && !isMarketplaceDriver) {
     console.error("getTripById error:", err);
     return res.status(500).json({ error: "Server error fetching trip" });
   }
+  
 }
 
 /**

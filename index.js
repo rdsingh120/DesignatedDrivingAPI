@@ -10,10 +10,9 @@ import tripRoutes from "./src/routes/trip.route.js";
 import driverProfileRoutes from "./src/routes/driverProfile.route.js";
 import ratingRoutes from "./src/routes/rating.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
+import savedLocationRoutes from "./src/routes/savedLocation.route.js";
 import path from "path";
 import fs from "fs";
-import incidentReportRoutes from "./src/routes/incidentReport.route.js";
-import analyticsRoutes from "./src/routes/analytics.route.js";
 
 
 
@@ -21,7 +20,9 @@ const server = express();
 
 server.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL],
+    origin: ["http://localhost:5173", process.env.CLIENT_URL
+      ,"https://deploy-preview-24--drivly-project.netlify.app",
+    ],
     credentials: true,
   }),
 );
@@ -41,8 +42,6 @@ server.use("/api/vehicles", vehicleRoutes);
 server.use("/api/driver-profiles", driverProfileRoutes);
 server.use("/api/ratings", ratingRoutes);
 server.use("/api/users", userRoutes);
-server.use("/api/incident-reports", incidentReportRoutes);
-server.use("/api/analytics", analyticsRoutes);
 
 const port = process.env.PORT || 3000;
 
