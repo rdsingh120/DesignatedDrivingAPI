@@ -1,7 +1,7 @@
 // src/controllers/estimate.controller.js
 import Estimate from "../models/Estimate.model.js";
-import { getRouteOSRM } from "../services/osrm.service.js";
 import { computeFare } from "../services/fare.service.js";
+import { getRouteOSRM, RoutingError } from "../services/osrm.service.js";
 import { geocodeAddress, GeocodeError } from "../services/geocode.service.js";
 
 function ttlMinutes() {
@@ -121,9 +121,17 @@ export async function createEstimate(req, res) {
       expiresAt,
     });
   } catch (err) {
-    if (err instanceof GeocodeError) {
-      return res.status(err.status || 400).json({ error: err.message });
-    }
-    return res.status(502).json({ error: err?.message || "Estimate service unavailable" });
+  console.error("createEstimate error details:", {
+    name: err?.name,
+    message: err?.message,
+    status: err?.status,
+    stack: err?.stack,
+  });
+
+  if (err instanceof GeocodeError || err instanceof RoutingError) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+
+  return res.status(502).json({ error: err?.message || "Estimate service unavailable" });
   }
 }

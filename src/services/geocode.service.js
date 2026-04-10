@@ -39,7 +39,7 @@ export async function geocodeAddress(addressString) {
     `&format=jsonv2&limit=1&addressdetails=1`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res = await fetch(url, {
@@ -52,8 +52,8 @@ export async function geocodeAddress(addressString) {
     });
 
     if (!res.ok) {
-      throw new GeocodeError(`Geocoding failed (${res.status})`, 502);
-    }
+  throw new GeocodeError(`Geocoding failed (${res.status})`, res.status);
+      }
 
     const data = await res.json();
     const first = Array.isArray(data) ? data[0] : null;
@@ -76,7 +76,18 @@ export async function geocodeAddress(addressString) {
       raw: first,
       provider: { name: "Nominatim", baseUrl },
     };
-  } finally {
+  } catch (err) {
+  if (err?.name === "AbortError") {
+    throw new GeocodeError("Geocoding request timed out", 504);
+  }
+
+  if (err instanceof GeocodeError) {
+    throw err;
+  }
+
+  throw new GeocodeError(err?.message || "Geocoding failed", 502);
+} 
+  finally {
     clearTimeout(timeout);
   }
 }
