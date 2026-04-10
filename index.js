@@ -12,13 +12,8 @@ import ratingRoutes from "./src/routes/rating.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import path from "path";
 import fs from "fs";
-<<<<<<< Updated upstream
-=======
-import driverRoutes from "./src/routes/driver.route.js";
-import notificationRoutes from "./src/routes/notification.route.js";
 import incidentReportRoutes from "./src/routes/incidentReport.route.js";
 import analyticsRoutes from "./src/routes/analytics.route.js";
->>>>>>> Stashed changes
 
 
 
@@ -46,14 +41,8 @@ server.use("/api/vehicles", vehicleRoutes);
 server.use("/api/driver-profiles", driverProfileRoutes);
 server.use("/api/ratings", ratingRoutes);
 server.use("/api/users", userRoutes);
-<<<<<<< Updated upstream
-=======
-server.use("/api/drivers", driverRoutes);
-server.use("/api/notifications", notificationRoutes);
-server.use("/api/saved-locations", savedLocationRoutes);
 server.use("/api/incident-reports", incidentReportRoutes);
 server.use("/api/analytics", analyticsRoutes);
->>>>>>> Stashed changes
 
 const port = process.env.PORT || 3000;
 
