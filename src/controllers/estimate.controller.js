@@ -42,10 +42,8 @@ export async function createEstimate(req, res) {
     }
 
     if (hasAddresses) {
-      const [g1, g2] = await Promise.all([
-        geocodeAddress(pickup_address),
-        geocodeAddress(dropoff_address),
-      ]);
+      const g1 = await geocodeAddress(pickup_address);
+      const g2 = await geocodeAddress(dropoff_address);
 
       pickup = { lat: g1.lat, lng: g1.lng };
       dropoff = { lat: g2.lat, lng: g2.lng };
